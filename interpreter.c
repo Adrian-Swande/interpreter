@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define _SIZE_ 10
-
 const char
 	style_reset[]="\033[0m",
     style_bold[]="\033[01m",
@@ -36,9 +34,27 @@ const char
     bg_cyan[]="\033[46m",
     bg_lightgrey[]="\033[47m";
 
+//SYSTEM
+void error_P_SYSTEM(int m); //SYSTEM ERROR MEDDELANDE
+void error_S_SYSTEM(char m[]);
+
+unsigned int alert_number_SYSTEM=0;
+
+//VIRITUELL STACK
+#define _STACK_SIZE_ 100 //STACKKAPACITET
+
+int STACK[_STACK_SIZE_];
+int TOP_STACK=-1;
+
+void clear_STACK();
+
+void push_STACK(int val);
+int   pop_STACK();
+int  peek_STACK(int d);
+
 //HEMMAGJORT MINNESSYSTEM + PEKARE
-#define _MEMORY_X_SIZE_ 10 //STRÄNGSTORLEK
-#define _MEMORY_Y_SIZE_ 5  //STRÄNGKAPACITET
+#define _MEMORY_X_SIZE_ 3 //STRÄNGSTORLEK
+#define _MEMORY_Y_SIZE_ 10 //STRÄNGKAPACITET
 
 char CHAR_MEMORY[_MEMORY_X_SIZE_*_MEMORY_Y_SIZE_];
 //char  INT_MEMORY[_MEMORY_X_SIZE_*_MEMORY_Y_SIZE_];
@@ -55,7 +71,7 @@ void putChar_MEMORY(int y,int x,char c);
 void putString_MEMORY(int y,char s[_MEMORY_X_SIZE_]);
 
 int putString_RandomAcess_MEMORY(char s[_MEMORY_X_SIZE_]);
-int find_RandomAccess_MEMORY();
+int find_RandomAccess_MEMORY(int n);
 
 void printChar_MEMORY(int y,int x);
 void printString_MEMORY(int y,int endLine);
@@ -73,6 +89,12 @@ int stringLength_MEMORY(int y);
 
 void copyString_MEMORY(int a,int b);
 
+//FUNKTIONER HANTERANDE STRÄNGLISTOR M.M.
+char EMPTY_STRING_LIST[]="_empty_string_list_";
+char END_OF_STRING_LIST[]="_end_of_string_list_";
+
+int createStringList_RandomAccess_MEMORY(int l);
+
 //SPECIFIKA PROGRAMFUNKTIONER
 void prompt(char esc,int promptY,int destinationY,int max);
 void lexer();
@@ -82,9 +104,9 @@ void parse();
 const char DIV_CHARS[]=".,:;+-*/?!\"\'=([{}])<>|&%%@£$¤#~^\\→↓↑←«»±";
 
 //SPECIFIKA GLOBALA PROGRAMVARIABLER
-char userInput[_SIZE_];
+char userInput[_MEMORY_X_SIZE_];
 
-int main(int argc,char*argv[]){
+int main(int argc,char*argv[]){clear_MEMORY();
     return 0;
 }
 
@@ -112,10 +134,13 @@ void clear_MEMORY(){
 }
 
 void debug_CHAR_MEMORY(){
+	int mem=0;
     for(int i=0;i<_MEMORY_X_SIZE_*_MEMORY_Y_SIZE_;i++){
         printf("CHAR_MEMORY[%d]:",i);
         if(i<10)printf(" ");
-        printf(" %c\n",CHAR_MEMORY[i]);
+        printf(" %c",CHAR_MEMORY[i]);
+		if(i%_MEMORY_X_SIZE_==0)printf("\t(%d)\n",mem),mem++;
+		else printf("\n");
     }
 }
 
@@ -149,12 +174,17 @@ int putString_RandomAcess_MEMORY(char s[_MEMORY_X_SIZE_]){
     return i;
 }
 
-int find_RandomAccess_MEMORY(){
-    int i=0;
-    for(;i<_MEMORY_Y_SIZE_;i++){
-        if(getChar_MEMORY(i,0)=='\0')break;
-    }
-    return i;
+int find_RandomAccess_MEMORY(int n){
+	int m=n;
+	for(int l=0;l<_MEMORY_Y_SIZE_;l++){
+    	for(int i=l;i<_MEMORY_Y_SIZE_;i++){
+        	if(getChar_MEMORY(i,0)=='\0')m--;
+			else{m=n;l=i;break;}
+
+			if(!m)return l;
+    		}
+	}
+	error_S_SYSTEM("memory capacity exeeded");
 }
 
 void printChar_MEMORY(int y,int x){
@@ -215,4 +245,51 @@ void copyString_MEMORY(int a,int b){
     free_MEMORY(b);
     for(int i=0;i<_MEMORY_X_SIZE_&&getChar_MEMORY(a,i)!='\0';i++)
         putChar_MEMORY(b,i,getChar_MEMORY(a,i));
+}
+
+//VIRITUELL STACK
+void clear_STACK(){
+	for(int i=0;i<_STACK_SIZE_;i++)
+        STACK[i]=0;
+}
+
+void push_STACK(int val){
+    if(TOP_STACK>=_STACK_SIZE_-1)error_S_SYSTEM("stack overflow");
+    else TOP_STACK++,STACK[TOP_STACK]=val;
+}
+
+int pop_STACK(){
+    if(TOP_STACK<=-1)error_S_SYSTEM("stack underflow");
+    else TOP_STACK--;
+}
+
+//FUNKTIONER HANTERANDE STRÄNGLISTOR M.M.
+int createStringList_RandomAccess_MEMORY(int l){
+	int p=find_RandomAccess_MEMORY(l+1);
+	for(int i=p;i<l+p;i++)putString_MEMORY(i,EMPTY_STRING_LIST);
+	putString_MEMORY(p+l,END_OF_STRING_LIST);
+	return p;
+}
+
+
+//SYSTEM
+void error_P_SYSTEM(int m){
+    printf("\n%s%s_SYSTEM_BEGIN_ {\"system alert\":{\"number\":%d,\"type\":\"error\",\"message\":\"",
+    bg_red,fg_black,alert_number_SYSTEM);
+    printString_MEMORY(m,0);
+    printf("\"}} _SYSTEM_END_%s\n",style_reset);
+    alert_number_SYSTEM++;
+	
+	exit(0);
+}
+
+void error_S_SYSTEM(char m[]){
+    printf("\n%s%s_SYSTEM_BEGIN_ {\"system alert\":{\"number\":%d,\"type\":\"error\",\"message\":\"%s\"}} _SYSTEM_END_%s\n",
+    bg_red,fg_black,
+    alert_number_SYSTEM,
+    m,
+    style_reset);
+    alert_number_SYSTEM++;
+	
+	exit(0);
 }
