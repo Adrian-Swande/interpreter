@@ -75,18 +75,6 @@ const char DIV_CHARS[]=".,:;+-*/?!\"\'=([{}])<>|&%%@£$¤#~^\\→↓↑←«»±
 char userInput[_SIZE_];
 
 int main(int argc,char*argv[]){
-    clear_MEMORY();
-
-    putString_MEMORY(0,"Your name");
-    prompt('\n',0,1,_MEMORY_X_SIZE_);
-
-    printString_MEMORY(1,1);
-
-    putString_RandomAcess_MEMORY("nigg");
-    putString_MEMORY(2,"abc");
-
-    debug_CHAR_MEMORY();
-
     return 0;
 }
 
