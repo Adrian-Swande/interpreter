@@ -176,6 +176,7 @@ void concatStrings_PP_MEMORY(int a,int b){
     for(;getChar_MEMORY(a,i)!='\0'&&i<_MEMORY_X_SIZE_;i++);
     for(int i2=0;getChar_MEMORY(b,i2)!='\0'&&i<_MEMORY_X_SIZE_;i++,i2++)
         putChar_MEMORY(a,i,getChar_MEMORY(b,i2));
+    free_MEMORY(b);
 }
 
 void concatStrings_PS_MEMORY(int a,char b[_MEMORY_X_SIZE_]){
