@@ -55,13 +55,21 @@ void putChar_MEMORY(int y,int x,char c);
 void putString_MEMORY(int y,char s[_MEMORY_X_SIZE_]);
 
 int putString_RandomAcess_MEMORY(char s[_MEMORY_X_SIZE_]);
+int find_RandomAccess_MEMORY();
 
 void printChar_MEMORY(int y,int x);
 void printString_MEMORY(int y,int endLine);
 
+void free_MEMORY(int y);
+
 //STRÄNG-MANIPULATIONSFUNKTIONER
-//void str_concat(int a,int b);
-//int  str_compare(int a,int b);
+void concatStrings_PP_MEMORY(int a,int b); //PEKARE, PEKARE
+void concatStrings_PS_MEMORY(int a,char b[_MEMORY_X_SIZE_]); //PEKARE, STRÄNG
+
+int compareStrings_PP_MEMORY(int a,int b);
+int compareStrings_PS_MEMORY(int a,char b[_MEMORY_X_SIZE_]);
+
+int stringLength_MEMORY(int y);
 
 //SPECIFIKA PROGRAMFUNKTIONER
 void prompt(char esc,int promptY,int destinationY,int max);
@@ -81,42 +89,6 @@ int main(int argc,char*argv[]){
 //SPECIFIKA PROGRAMFUNKTIONER
 void lexer(){
 
-    /*
-    char**t;
-    t=malloc(R*sizeof(char*));
-    for(int i=0;i<C;i++)t[i]=malloc(C*sizeof(char));
-
-    int ti=0;char prev='a';
-    for(int i=0;*s!='\0';s++,i++){
-        if(*s==' '){//TA BORT BLANKSTEG (OCH BRYT UPP)
-            if(prev!=' '){
-                if(t[0][0])
-                    t[ti][i]='\0',ti++,i=-1;
-            }
-            else i--;
-        }
-        
-        for(int u=0;u<strlen(&DIV_CHARS[0]);u++){//BRYTER UT SPECIALKARAKTÄRER
-            if(*s==DIV_CHARS[u]){
-                if(ti){
-                    if(t[ti-1][0]=='\0')ti++;
-                }
-                t[ti][0]=*s;
-                ti++;
-                i=-1;
-                printf("break-char found: '%c'\n",*s);
-                break;
-            }
-        }
-
-        if(*s!=' ')t[ti][i]=*s;
-        prev=*s;
-    }t[ti+1][0]='\0';
-
-    return t;
-    */
-
-    //GLÖM INTE ATT FRIGÖRA MINNET EFTER ANVÄNDNING MED 'freeArray(pointer)'
 }
 
 void prompt(char esc,int promptY,int destinationY,int max){
@@ -172,6 +144,15 @@ int putString_RandomAcess_MEMORY(char s[_MEMORY_X_SIZE_]){
         if(getChar_MEMORY(i,0)=='\0')break;
     }
     putString_MEMORY(i,s);
+    return i;
+}
+
+int find_RandomAccess_MEMORY(){
+    int i=0;
+    for(;i<_MEMORY_Y_SIZE_;i++){
+        if(getChar_MEMORY(i,0)=='\0')break;
+    }
+    return i;
 }
 
 void printChar_MEMORY(int y,int x){
@@ -182,4 +163,46 @@ void printString_MEMORY(int y,int endLine){
     for(int i=0;getChar_MEMORY(y,i)!='\0'&&i<_MEMORY_X_SIZE_;i++)
         printf("%c",getChar_MEMORY(y,i));
     if(endLine)printf("\n");
+}
+
+void free_MEMORY(int y){
+    for(int i=0;i<_MEMORY_Y_SIZE_;i++)
+        putChar_MEMORY(y,i,'\0');
+}
+
+//STRÄNG-MANIPULATIONSFUNKTIONER
+void concatStrings_PP_MEMORY(int a,int b){
+    int i=0;
+    for(;getChar_MEMORY(a,i)!='\0'&&i<_MEMORY_X_SIZE_;i++);
+    for(int i2=0;getChar_MEMORY(b,i2)!='\0'&&i<_MEMORY_X_SIZE_;i++,i2++)
+        putChar_MEMORY(a,i,getChar_MEMORY(b,i2));
+}
+
+void concatStrings_PS_MEMORY(int a,char b[_MEMORY_X_SIZE_]){
+    int i=0;
+    for(;getChar_MEMORY(a,i)!='\0'&&i<_MEMORY_X_SIZE_;i++);
+    for(int i2=0;b[i2]!='\0'&&i<_MEMORY_X_SIZE_;i++,i2++)
+        putChar_MEMORY(a,i,b[i2]);
+}
+
+int compareStrings_PP_MEMORY(int a,int b){
+    for(int i=0;i<_MEMORY_X_SIZE_&&
+    (getChar_MEMORY(a,i)!='\0'||getChar_MEMORY(b,i)!='\0');i++)
+        if(getChar_MEMORY(a,i)!=getChar_MEMORY(b,i))
+            return 0;
+    return 1;
+}
+
+int compareStrings_PS_MEMORY(int a,char b[_MEMORY_X_SIZE_]){
+    for(int i=0;i<_MEMORY_X_SIZE_&&
+    (getChar_MEMORY(a,i)!='\0'||b[i]!='\0');i++)
+        if(getChar_MEMORY(a,i)!=b[i])
+            return 0;
+    return 1;
+}
+
+int stringLength_MEMORY(int y){
+    int i=0;
+    for(;getChar_MEMORY(y,i)!='\0'&&i<_MEMORY_X_SIZE_;i++);
+    return i;
 }
