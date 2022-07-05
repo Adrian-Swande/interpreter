@@ -90,10 +90,21 @@ int stringLength_MEMORY(int y);
 void copyString_MEMORY(int a,int b);
 
 //FUNKTIONER HANTERANDE STRÄNGLISTOR M.M.
-char EMPTY_STRING_LIST[]="_empty_string_list_";
-char END_OF_STRING_LIST[]="_end_of_string_list_";
+char EMPTY_STRING_LIST[]="_e";//"_empty_string_list_";
+char END_OF_STRING_LIST[]="_q";//"_end_of_string_list_";
 
 int createStringList_RandomAccess_MEMORY(int l);
+
+int stringListLength_MEMORY(int y);
+
+int  getStringInList_MEMORY(int l,int y);
+void copyStringIntoList_MEMORY(int l,int y,int p);
+void copyStringFromList_MEMORY(int l,int y,int p);
+void putStringIntoList_MEMORY(int l,int y,char s[_MEMORY_X_SIZE_]);
+int  appendStringList_P_MEMORY(int l,int y);
+int  appendStringList_S_MEMORY(int l,char s[_MEMORY_X_SIZE_]);
+
+void freeStringList_MEMORY(int y);
 
 //SPECIFIKA PROGRAMFUNKTIONER
 void prompt(char esc,int promptY,int destinationY,int max);
@@ -107,7 +118,7 @@ const char DIV_CHARS[]=".,:;+-*/?!\"\'=([{}])<>|&%%@£$¤#~^\\→↓↑←«»±
 char userInput[_MEMORY_X_SIZE_];
 
 int main(int argc,char*argv[]){clear_MEMORY();
-    return 0;
+	return 0;
 }
 
 //SPECIFIKA PROGRAMFUNKTIONER
@@ -177,13 +188,15 @@ int putString_RandomAcess_MEMORY(char s[_MEMORY_X_SIZE_]){
 int find_RandomAccess_MEMORY(int n){
 	int m=n;
 	for(int l=0;l<_MEMORY_Y_SIZE_;l++){
-    	for(int i=l;i<_MEMORY_Y_SIZE_;i++){
-        	if(getChar_MEMORY(i,0)=='\0')m--;
-			else{m=n;l=i;break;}
+    	for(int i=l;1;i++){//printf("i:%d, m:%d, n:%d\n",i,m,n);
+        	if(getChar_MEMORY(i,0)=='\0'){m--;}
+			else{m=n;l=i;/*printf("f\n")*/;break;}
 
 			if(!m)return l;
-    		}
+			if(i==_MEMORY_Y_SIZE_-1)goto end;
+    	}
 	}
+end:
 	error_S_SYSTEM("memory capacity exeeded");
 }
 
@@ -198,7 +211,7 @@ void printString_MEMORY(int y,int endLine){
 }
 
 void free_MEMORY(int y){
-    for(int i=0;i<_MEMORY_Y_SIZE_;i++)
+    for(int i=0;i<_MEMORY_X_SIZE_&&getChar_MEMORY(y,i)!='\0';i++)
         putChar_MEMORY(y,i,'\0');
 }
 
@@ -266,11 +279,54 @@ int pop_STACK(){
 //FUNKTIONER HANTERANDE STRÄNGLISTOR M.M.
 int createStringList_RandomAccess_MEMORY(int l){
 	int p=find_RandomAccess_MEMORY(l+1);
-	for(int i=p;i<l+p;i++)putString_MEMORY(i,EMPTY_STRING_LIST);
+	for(int i=p;i<p+l;i++)putString_MEMORY(i,EMPTY_STRING_LIST);
 	putString_MEMORY(p+l,END_OF_STRING_LIST);
 	return p;
 }
 
+int stringListLength_MEMORY(int y){
+	int i=y;
+	for(;!compareStrings_PS_MEMORY(i,END_OF_STRING_LIST);i++){
+		if(i==_MEMORY_Y_SIZE_-1)error_S_SYSTEM("faulty list pointing pointer");
+	}
+	return i-y;
+}
+
+int getStringInList_MEMORY(int l,int y){
+	if(y>stringListLength_MEMORY(l))error_S_SYSTEM("list index out of range");
+	return l+y;
+}
+
+
+void copyStringIntoList_MEMORY(int l,int y,int p){
+	copyString_MEMORY(p,l+y);
+}
+
+void copyStringFromList_MEMORY(int l,int y,int p){
+	copyString_MEMORY(l+y,p);
+}
+
+void putStringIntoList_MEMORY(int l,int y,char s[_MEMORY_X_SIZE_]){
+	putString_MEMORY(l+y,s);
+}
+
+int  appendStringList_P_MEMORY(int l,int y){
+
+}
+
+int  appendStringList_S_MEMORY(int l,char s[_MEMORY_X_SIZE_]){
+
+}
+
+void freeStringList_MEMORY(int y){
+	for(int i=y;1;i++){
+		//printf("i:%d - ",i);
+		//printString_MEMORY(i,1);
+		if(compareStrings_PS_MEMORY(i,END_OF_STRING_LIST)){free_MEMORY(i);return;}
+		free_MEMORY(i);
+		if(i==_MEMORY_Y_SIZE_-1)error_S_SYSTEM("unknown");
+	}
+}
 
 //SYSTEM
 void error_P_SYSTEM(int m){
