@@ -1,10 +1,10 @@
 # Syntax
 
-##Variabler
+## Variabler
 
 ### Variabeldeklaration och tilldelning
 
-Variabler kan deklareras och tilldelas strängar eller heltal. Distinktionen spelar dock endast roll vid tilldelning. Alla variabelvärden lagras intärnt som strängar av tecken.
+Variabler kan deklareras och tilldelas strängar eller heltal. Distinktionen spelar dock endast roll vid tilldelning. Alla variabelvärden lagras intärnt som teckensträngar.
 
 Deklaration och strängtilldelning följer syntaxen:
 
