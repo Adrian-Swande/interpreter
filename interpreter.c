@@ -41,8 +41,8 @@ void error_S_SYSTEM(char m[]);
 unsigned int alert_number_SYSTEM=0;
 
 //HEMMAGJORT MINNESSYSTEM + PEKARE
-#define _MEMORY_X_SIZE_ 3 //STRÄNGSTORLEK
-#define _MEMORY_Y_SIZE_ 10 //STRÄNGKAPACITET
+#define _MEMORY_X_SIZE_ 100 //STRÄNGSTORLEK
+#define _MEMORY_Y_SIZE_ 100 //STRÄNGKAPACITET
 
 char CHAR_MEMORY[_MEMORY_X_SIZE_*_MEMORY_Y_SIZE_];
 //char  INT_MEMORY[_MEMORY_X_SIZE_*_MEMORY_Y_SIZE_];
@@ -58,7 +58,7 @@ char getChar_MEMORY(int y,int x);
 void putChar_MEMORY(int y,int x,char c);
 void putString_MEMORY(int y,char s[_MEMORY_X_SIZE_]);
 
-int putString_RandomAcess_MEMORY(char s[_MEMORY_X_SIZE_]);
+int putString_RandomAccess_MEMORY(char s[_MEMORY_X_SIZE_]);
 int find_RandomAccess_MEMORY(int n);
 
 void printChar_MEMORY(int y,int x);
@@ -127,6 +127,12 @@ const char RES_WORDS[L_MAX][W_MAX]={
 	"false",
 	"yamete",
 	"end",
+	"int",
+	"str",
+	"__assign__",
+	"__str_concat__",
+	"__str_stack_mode__",
+	"__int_stack_mode__",
 	"return"};
 
 
@@ -143,6 +149,7 @@ void place(const char t[W_MAX]);
 bool check(const char t[W_MAX]);
 bool checkNext(const char t[W_MAX]);
 bool stringIsIn(const char s[W_MAX],const char p[L_MAX][W_MAX]);
+bool stringContainsChar(const char s[W_MAX],const char p[W_MAX]);
 bool isInteger(const char s[W_MAX]);
 bool isSymbol(const char s[W_MAX]);
 void parse();
@@ -154,6 +161,13 @@ int orderIndex=0;
 void code();
 void block();
 void expression();
+
+void declareNumeric();
+void declareString();
+
+void stringExpression();
+void string();
+
 void numeric();
 void or_();
 void and_();
@@ -185,21 +199,34 @@ bool ERROR=false;
 
 void clear();
 
+
+//VIRITUELLA VARIABLER
+int _vi=0; //variable index
+unsigned int	VARIABLE_POINTERS[L_MAX];
+char			VARIABLE_NAMES[L_MAX][W_MAX];
+
+int  getVariableIndexByName	(const char n[W_MAX]);
+int  getVariableValueByName	(const char n[W_MAX]);
+void assignVariableByName	(const char n[W_MAX],const int v);
+
+
 int main(int argc,char*argv[]){
 
+	bool noExe=false;
 	for(int i=0;i<argc;i++){
 		if(!strcmp(argv[i],"-d"))DEBUG=true;
+		if(!strcmp(argv[i],"-s"))noExe=true;
 	}
-	
+
 	clear_MEMORY();
 
-	while(1){
-		
+	{
+
 		char userInput[W_MAX];
-		prompt('\n',"megumin.c",userInput,W_MAX);
-		
+		prompt(';',"megumin.c",userInput,W_MAX);
+
 		lex(userInput,tokens);
-		
+
 		parse(tokens);
 
 		if(DEBUG){
@@ -208,11 +235,11 @@ int main(int argc,char*argv[]){
 			for(int i=0;strcmp(orders[i],"");i++)printf("order[%d]: %s\n",i,orders[i]);
 			printf("\n");
 		}
-		
-		if(ERROR)goto abort_execution;
+
+		if(ERROR||noExe)goto abort_execution;
 
 		execute();
-		
+
 abort_execution:
 		clear();
 	}
@@ -221,21 +248,60 @@ abort_execution:
 }
 
 void clear(){
-	for(int y=0;y<L_MAX;y++){
+	for(int y=0;y<L_MAX;y++){	
+		VARIABLE_POINTERS[y]=0;
 		for(int x=0;x<W_MAX;x++)
 			tokens[y][x]='\0',
-			orders[y][x]='\0';
+			orders[y][x]='\0',
+			VARIABLE_NAMES[y][x]='\0';
 	}
 	for(int i=0;i<S_STACK;i++)
 		stack[i]=0;
 
 	stackTop=-1;
-	
+
 	SW___=false;
 	tokenIndex=0;
 	orderIndex=0;
 	ERROR=false;
 	OI=0;
+}
+
+int getVariableIndexByName(const char n[]){
+	for(int i=0;strcmp(VARIABLE_NAMES[i],"")&&i<L_MAX;i++){
+		if(!strcmp(n,VARIABLE_NAMES[i]))return i;
+	}return -1;
+}
+int getVariableValueByName(const char n[]){
+	int index,pointer;
+	if(stringIsIn(n,VARIABLE_NAMES)){
+		index=getVariableIndexByName(n);
+		pointer=VARIABLE_POINTERS[index];
+		char value[_MEMORY_X_SIZE_];
+		for(int i=0;i<_MEMORY_X_SIZE_&&getChar_MEMORY(pointer,i)!='\0';i++)value[i]=getChar_MEMORY(pointer,i);
+		return intParse(value);
+	}
+	else{
+		executionError("unknown symbol, expected variable");
+	}
+}
+void assignVariableByName(const char n[],const int v){
+	int index,pointer;
+	if(stringIsIn(n,VARIABLE_NAMES)){
+		index=getVariableIndexByName(n);
+		pointer=VARIABLE_POINTERS[index];
+		char value[_MEMORY_X_SIZE_];
+		sprintf(value,"%d",v);
+		putString_MEMORY(pointer,value);
+	}
+	else{
+		index=_vi;_vi++;
+		strcpy(VARIABLE_NAMES[index],n);
+		char value[_MEMORY_X_SIZE_];
+		sprintf(value,"%d",v);
+		pointer=putString_RandomAccess_MEMORY(value);
+		VARIABLE_POINTERS[index]=pointer;
+	}
 }
 
 void execute(){
@@ -244,11 +310,11 @@ void execute(){
 		strcpy(o,orders[OI]);
 
 		if(DEBUG)printf("order: %s\n",o);
-		
-		
-		
+
+
+
 		if(isInteger(o))push(intParse(o));
-		
+
 		else if(!strcmp(o,"print"))printf("%d\n",pop());
 		else if(!strcmp(o,"input")){
 			char inp[W_MAX];
@@ -258,6 +324,12 @@ void execute(){
 
 		else if(!strcmp(o,"end"))return;
 		else if(!strcmp(o,"yamete"))exit(0);
+
+		else if(!strcmp(o,"__assign__")){
+			OI++;
+			assignVariableByName(orders[OI],pop());
+		}
+		else if(isSymbol(o))push(getVariableValueByName(o));
 
 		else if(o[0]=='+')push(pop()+pop());
 		else if(o[0]=='-'&&o[1]=='\0'){int a=pop();push(pop()-a);}
@@ -270,13 +342,13 @@ void execute(){
 nonono:;
 		}
 		else if(o[0]=='^'){int a=pop();push(intPower(pop(),a));}
-		
+
 		else if(!strcmp(o,"not"))push(!pop());
-	
+
 		else if(!strcmp(o,"_="))push(pop()==pop());
 		else if(o[0]=='<'){int a=pop();push(pop()<a);}
 		else if(o[0]=='>'){int a=pop();push(pop()>a);}
-	
+
 
 
 		if(DEBUG){
@@ -358,6 +430,13 @@ bool stringIsIn(const char s[],const char p[L_MAX][W_MAX]){
 		if(!strcmp(s,p[i]))return true;
 	}return false;
 }
+bool stringContainsChar(const char s[],const char p[]){
+	for(int i=0;i<strlen(s);i++){
+		for(int u=0;u<strlen(p);u++){
+			if(s[i]==p[u])return true;
+		}
+	}return false;
+}
 bool isInteger(const char s[]){
 	if(!strcmp(s,"-"))return false;
 	const char numbers[10]="0123456789";
@@ -369,7 +448,7 @@ cont:;
 	}return true;
 }
 bool isSymbol(const char s[]){
-	return !isInteger(s)&&!stringIsIn(s,RES_WORDS);
+	return !isInteger(s)&&!stringIsIn(s,RES_WORDS)&&!stringContainsChar(s,DIV_CHARS);
 }
 void parse(){
 	code();
@@ -377,7 +456,7 @@ void parse(){
 void code(){
 	char bs[L_MAX][W_MAX]={"if","while","for","def"};
 	while(!check("")){
-		if(divChar(tokens[tokenIndex][0]))return;
+		if(divChar(tokens[tokenIndex][0]))return; //end of block
 		else if(stringIsIn(tokens[tokenIndex],bs))
 			block();
 		else expression();
@@ -392,7 +471,6 @@ void expression(){
 		next();
 		numeric();
 		place("print");
-		return;
 	}
 	/*else if(check("goto")){
 		next()
@@ -401,9 +479,68 @@ void expression(){
 		place("goto");
 		place(tokens[tokenIndex]);
 	}*/
+	/*
+	else if(check("int")){
+		next();
+		declareNumeric();
+	}
+	else if(check("str")){
+		next();
+		declareString();
+	}*/
+	else if(isSymbol(tokens[tokenIndex])){
+		if(checkNext("-"))declareString();
+		else if(checkNext("="))declareNumeric();
+		//else if(check(":")); //goto
+		//else //kalla funktion
+	}
 	else if(check("end"))place("end");
 	else if(check("yamete"))place("yamete");
+
 	else syntaxError("unknown expression");
+}
+void declareNumeric(){
+	char v[W_MAX];
+	strcpy(v,tokens[tokenIndex]);
+	next();
+	next();
+	numeric();
+	place("__assign__");
+	place(v);
+}
+void declareString(){
+	place("__str_stack_mode__");
+	char v[W_MAX];
+	if(!isSymbol(tokens[tokenIndex]))syntaxError("expected symbol");
+	strcpy(v,tokens[tokenIndex]);
+	next();
+	next();
+	stringExpression();
+	place("__assign__");
+	place(v);
+	place("__int_stack_mode__");
+}
+void stringExpression(){
+	string();
+	while(checkNext("+")){
+		next();
+		next();  // |o| (o) <o> |-o-| (-o-) <-o-> --o-O-o--
+		string();
+		place("__str_concat__");
+	}
+}
+void string(){
+	if(isSymbol(tokens[tokenIndex])){
+		printf(">%s\n",tokens[tokenIndex]);place(tokens[tokenIndex]);
+	}
+	if(check("'")){
+		next();
+		char s[W_MAX]="\"";
+		strcat(s,tokens[tokenIndex]);
+		place(s);
+		if(!checkNext("'"))syntaxError("expected end of string '''");
+		next();
+	}
 }
 void numeric(){
 	or_();
@@ -500,6 +637,8 @@ void potens(){
 	else if(check("true"))	place("1");
 	else if(check("false"))	place("0");
 	else if(check("input"))	place("input");
+	else if(isSymbol(tokens[tokenIndex]))place(tokens[tokenIndex]);
+
 	else syntaxError("expected value");
 }
 
@@ -605,7 +744,7 @@ void putString_MEMORY(int y,char s[_MEMORY_X_SIZE_]){
         putChar_MEMORY(y,i,'\0');
 }
 
-int putString_RandomAcess_MEMORY(char s[_MEMORY_X_SIZE_]){
+int putString_RandomAccess_MEMORY(char s[_MEMORY_X_SIZE_]){
     int i=0;
     for(;i<_MEMORY_Y_SIZE_;i++){
         if(getChar_MEMORY(i,0)=='\0')break;
@@ -728,7 +867,7 @@ int appendCopyStringList_MEMORY(int l,int y){
 	int i=y;
 	for(;!compareStrings_PS_MEMORY(i,EMPTY_STRING_LIST);i++);
 	if(compareStrings_PS_MEMORY(i,END_OF_STRING_LIST))error_S_SYSTEM("list range exeeded");
-	
+
 	copyStringIntoList_MEMORY(l,i,y);
 }
 
@@ -753,7 +892,7 @@ void error_P_SYSTEM(int m){
     printString_MEMORY(m,0);
     printf("\"}} _SYSTEM_END_%s\n",style_reset);
     alert_number_SYSTEM++;
-	
+
 	exit(0);
 }
 
@@ -764,6 +903,6 @@ void error_S_SYSTEM(char m[]){
     m,
     style_reset);
     alert_number_SYSTEM++;
-	
+
 	exit(0);
 }
