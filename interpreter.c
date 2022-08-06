@@ -279,7 +279,7 @@ int main(int argc,char*argv[]){
 abort_execution:
 		clear();
 	}
-	while(GETINPUT)
+	while(GETINPUT);
 
 	return 0;
 }
