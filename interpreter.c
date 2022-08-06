@@ -201,7 +201,7 @@ bool GETINPUT=true;
 
 bool ERROR=false;
 
-void clear();
+void clear(bool all);
 
 
 //VIRITUELLA VARIABLER
@@ -255,10 +255,10 @@ int main(int argc,char*argv[]){
 	}
 
 	clear_MEMORY();
+	clear(1);
 
 	do
-	{	//PROCEDURE
-		
+	{	
 		if(GETINPUT)prompt('\n',"megumin.c",codeInput,W_MAX);
 
 		lex(codeInput,tokens);
@@ -277,20 +277,22 @@ int main(int argc,char*argv[]){
 		execute();
 
 abort_execution:
-		clear();
+		
+		clear(0);
 	}
 	while(GETINPUT);
 
 	return 0;
 }
 
-void clear(){
+void clear(bool all){
 	for(int y=0;y<L_MAX;y++){	
-		VARIABLE_POINTERS[y]=0;
-		for(int x=0;x<W_MAX;x++)
-			tokens[y][x]='\0',
-			orders[y][x]='\0',
-			VARIABLE_NAMES[y][x]='\0';
+		if(all)VARIABLE_POINTERS[y]=0;
+		for(int x=0;x<W_MAX;x++){
+			tokens[y][x]='\0';
+			orders[y][x]='\0';
+			if(all)VARIABLE_NAMES[y][x]='\0';
+		}
 	}
 	for(int i=0;i<S_STACK;i++)
 		stack[i]=0;
@@ -389,10 +391,10 @@ void execute(){
 			stringStackPush(s);
 		}
 
-		else if(!strcmp(o,"print"))printf("%d\n",pop());
+		else if(!strcmp(o,"print"))printf("%s%s%d%s\n",style_bold,fg_yellow,pop(),style_reset);
 		else if(!strcmp(o,"write"))
 			stringStackPop(),
-			printf("stringprint: %s\n",stringStackPopped);
+			printf("%s%s%s%s\n",style_bold,fg_yellow,stringStackPopped,style_reset);
 		else if(!strcmp(o,"input")){
 			char inp[W_MAX]="____________";
 			prompt('\n',"PROGRAM INPUT",inp,W_MAX);
@@ -460,7 +462,7 @@ nonono:;
 	}
 }
 void executionError(const char error[]){
-	printf("EXECUTION ERROR (orders[%d] = \"%s\"): %s\n",OI,orders[OI],error);
+	printf("%sEXECUTION ERROR (orders[%d] = \"%s\"): %s%s\n",fg_red,OI,orders[OI],error,style_reset);
 	ERROR=true;
 }
 void stringStackPush(const char s[]){
@@ -789,7 +791,7 @@ void potens(){
 }
 
 void syntaxError(const char error[]){
-	printf("SYNTAX ERROR (tokens[%d] = \"%s\"): %s\n",tokenIndex,tokens[tokenIndex],error);
+	printf("%sSYNTAX ERROR (tokens[%d] = \"%s\"): %s%s\n",fg_red,tokenIndex,tokens[tokenIndex],error,style_reset);
 	ERROR=true;
 }
 
@@ -803,6 +805,24 @@ void lex(const char inp[],char x[L_MAX][W_MAX]){
 	for(int i=0;i<W_MAX&&inp[i]!='\0';i++){	
 		char c=inp[i];	
 		if(deadChar(c)){if(x[t][0]!='\0')t++;ti=0;}
+		else if(c=='\''){
+			x[t][0]='\'';t++;ti=0;
+			for(i++;i<W_MAX&&inp[i]!='\0'&&inp[i]!='\'';i++,ti++){
+				if(inp[i]=='\\'){
+					i++;
+					if		(inp[i]=='n')x[t][ti]='\n';
+					else if	(inp[i]=='t')x[t][ti]='\t';
+					else goto cont;
+					goto skip;
+				}
+cont:
+				x[t][ti]=inp[i];
+skip:;
+			}t++;
+			x[t][0]='\'';ti=0;t++;
+		}
+		else if(c=='#'&&inp[i+1]=='#'){for(i++;i<W_MAX&&inp[i]!='\0'&&!(inp[i]=='#'&&inp[i+1]=='#');i++);i++;}
+		else if(c=='#'){for(i++;i<W_MAX&&inp[i]!='\0'&&inp[i]!='#'&&inp[i]!='\n';i++);}
 		else if(divChar(c)){if(x[t][0]!='\0')t++;ti=0;x[t][ti]=c;t++;}	
 		else x[t][ti]=c,ti++;	
 	}	
@@ -855,7 +875,7 @@ void debug_CHAR_MEMORY(){
 }	
 /*void debug_INT_MEMORY(){	
     for(int i=0;i<_MEMORY_X_SIZE_*_MEMORY_Y_SIZE_;i++)	
-        printf("INT_MEMORY[%d]:\t\t%d\n",i,INT_MEMORY[i]);
+        printf("INT_MEMORY[%d]:\t\t%d\n",i,INT_MEMORY[i]);	
 }*/	
 char getChar_MEMORY(int y,int x){	
     return CHAR_MEMORY[y*_MEMORY_X_SIZE_+x];	
@@ -863,7 +883,7 @@ char getChar_MEMORY(int y,int x){
 void putChar_MEMORY(int y,int x,char c){	
     CHAR_MEMORY[y*_MEMORY_X_SIZE_+x]=c;	
 }	
-void putString_MEMORY(int y,const char s[_MEMORY_X_SIZE_]){
+void putString_MEMORY(int y,const char s[_MEMORY_X_SIZE_]){	
     int i=0;	
     for(;s[i]!='\0'&&i<_MEMORY_X_SIZE_;i++)	
         putChar_MEMORY(y,i,s[i]);	
@@ -906,7 +926,7 @@ void free_MEMORY(int y){
 //STRÄNG-MANIPULATIONSFUNKTIONER	
 void concatStrings_PP_MEMORY(int a,int b,int del){	
     int i=0;	
-    for(;getChar_MEMORY(a,i)!='\0'&&i<_MEMORY_X_SIZE_;i++);
+    for(;getChar_MEMORY(a,i)!='\0'&&i<_MEMORY_X_SIZE_;i++);	
     for(int i2=0;getChar_MEMORY(b,i2)!='\0'&&i<_MEMORY_X_SIZE_;i++,i2++)	
         putChar_MEMORY(a,i,getChar_MEMORY(b,i2));	
     if(del)	
@@ -1026,4 +1046,3 @@ void error_S_SYSTEM(char m[]){
 	exit(0);
 }
 
-[03:34:18]-skeksahir-LainPad-T490~/Projekt/Megumin> 
