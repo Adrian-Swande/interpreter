@@ -105,7 +105,7 @@ void freeStringList_MEMORY(int y);
 
 //PROGRAMSTORLEK
 #define L_MAX	100
-#define W_MAX	100
+#define W_MAX	500
 #define S_STACK	100
 
 typedef unsigned char byte;
@@ -122,6 +122,7 @@ const char RES_WORDS[L_MAX][W_MAX]={
 	"if",
 	"else",
 	"while",
+	"loop",
 	"def",
 	"true",
 	"false",
@@ -136,6 +137,8 @@ const char RES_WORDS[L_MAX][W_MAX]={
 	"__int_stack_mode__",
 	"free",
 	"write",
+	"__int_user_input__",
+	"__str_user_input__",
 	"return"};
 
 
@@ -161,6 +164,8 @@ bool SW___=false;
 int tokenIndex=0;
 int orderIndex=0;
 
+int blockNest[2]={-1,0};
+void placeFlag(bool type,bool type2,int na,int nb);
 void code();
 void block();
 void expression();
@@ -229,7 +234,7 @@ char stringStackPopped[W_MAX]="";
 
 int main(int argc,char*argv[]){
 
-	char codeInput[W_MAX];
+	char codeInput[W_MAX]="";
 	
 	bool noExe=false;
 	for(int i=0;i<argc;i++){
@@ -243,8 +248,6 @@ int main(int argc,char*argv[]){
 			fp=fopen(argv[i],"r");
 			if(!fp){printf("File error.\n");return 1;}
 			char s[W_MAX];
-			//while(fgets(s,10,fp)!=NULL)strcat(codeInput,s);
-		//	fscanf(fp,"%[^\n]",codeInput);
 			char c=fgetc(fp);
 			for(int i=0;c!=EOF&&i<W_MAX;i++){
 				codeInput[i]=c;
@@ -266,9 +269,9 @@ int main(int argc,char*argv[]){
 		parse(tokens);
 
 		if(DEBUG){
-			for(int i=0;strcmp(tokens[i],"");i++)printf("token[%d]: %s\n",i,tokens[i]);
+			for(int i=0;strcmp(tokens[i],"");i++)printf("token[%d]:\t%s\n",i,tokens[i]);
 			printf("\n");
-			for(int i=0;strcmp(orders[i],"");i++)printf("order[%d]: %s\n",i,orders[i]);
+			for(int i=0;strcmp(orders[i],"");i++)printf("order[%d]:\t%s\n",i,orders[i]);
 			printf("\n");
 		}
 
@@ -334,7 +337,9 @@ void assignVariableByName(const char n[],const int v){
 		putString_MEMORY(pointer,value);
 	}
 	else{
-		index=_vi;_vi++;
+		int i=0;for(;strcmp(VARIABLE_NAMES[i],"");i++){
+			if(i==L_MAX-1)executionError("out of variable space");
+		}index=i;
 		strcpy(VARIABLE_NAMES[index],n);
 		char value[_MEMORY_X_SIZE_]="___________________________";
 		sprintf(value,"%d",v);
@@ -350,7 +355,9 @@ void assignVariableStringByName(const char n[],const char s[]){
 		putString_MEMORY(pointer,s);
 	}
 	else{
-		index=_vi;_vi++;
+		int i=0;for(;strcmp(VARIABLE_NAMES[i],"");i++){
+			if(i==L_MAX-1)executionError("out of variable space");
+		}index=i;
 		strcpy(VARIABLE_NAMES[index],n);
 		pointer=putString_RandomAccess_MEMORY(s);
 		VARIABLE_POINTERS[index]=pointer;
@@ -376,7 +383,7 @@ void execute(){
 		char o[W_MAX];
 		strcpy(o,orders[OI]);
 
-		if(DEBUG)printf("order: %s\n",o);
+		if(DEBUG)printf("order[%d]: %s\n",OI,o);
 
 
 
@@ -386,24 +393,50 @@ void execute(){
 
 		else if(isInteger(o))push(intParse(o));
 		else if(o[0]=='"'){
-			char s[W_MAX];
+			char s[W_MAX]="";
 			for(int i=1;i<strlen(o);i++)s[i-1]=o[i];
 			stringStackPush(s);
+		}
+
+		else if(!strcmp(o,"goto")){
+			OI++;
+			if(DEBUG)printf("(goto '%s')\n",orders[OI]);
+			char mf[W_MAX]=":";
+			for(int i=0;i<strlen(orders[OI]);i++)mf[i+1]=orders[OI][i];
+			int i=0;for(;strcmp(mf,orders[i]);i++){if(i==L_MAX-1){executionError("flag not found");goto skip;}}
+			OI=i;
+skip:;
+		}
+		else if(!strcmp(o,"if")){
+			OI++;
+			if(!pop()){
+				if(DEBUG)printf("(goto '%s')\n",orders[OI]);
+				char mf[W_MAX]=":";
+				for(int i=0;i<strlen(orders[OI]);i++)mf[i+1]=orders[OI][i];
+				int i=0;for(;strcmp(mf,orders[i]);i++){if(i==L_MAX-1){executionError("flag not found");goto skip2;}}
+				OI=i;
+skip2:;
+			}
 		}
 
 		else if(!strcmp(o,"print"))printf("%s%s%d%s\n",style_bold,fg_yellow,pop(),style_reset);
 		else if(!strcmp(o,"write"))
 			stringStackPop(),
-			printf("%s%s%s%s\n",style_bold,fg_yellow,stringStackPopped,style_reset);
-		else if(!strcmp(o,"input")){
+			printf("%s%s%s%s",style_bold,fg_yellow,stringStackPopped,style_reset);
+		else if(!strcmp(o,"__int_user_input__")){
 			char inp[W_MAX]="____________";
-			prompt('\n',"PROGRAM INPUT",inp,W_MAX);
+			prompt('\n',"PROGRAM INPUT: INTEGER",inp,W_MAX);
 			push(intParse(inp));
 		}
-//		else if(!strcmp(o,"enter")) //string input
+		else if(!strcmp(o,"__str_user_input__")){
+			char inp[W_MAX]="";
+			prompt('\n',"PROGRAM INPUT: STRING",inp,W_MAX);
+			stringStackPush(inp);
+		}
 
 		else if(!strcmp(o,"free")){
 			OI++;
+			if(DEBUG)printf("(free '%s')\n",orders[OI]);
 			int index=getVariableIndexByName(orders[OI]);
 			free_MEMORY(VARIABLE_POINTERS[index]);
 			strcpy(VARIABLE_NAMES[index],"");
@@ -414,10 +447,12 @@ void execute(){
 
 		else if(!strcmp(o,"__assign_int__")){
 			OI++;
+			if(DEBUG)printf("(assign '%s')\n",orders[OI]);
 			assignVariableByName(orders[OI],pop());
 		}
 		else if(!strcmp(o,"__assign_str__")){
 			OI++;
+			if(DEBUG)printf("(assign '%s')\n",orders[OI]);
 			stringStackPop();
 			assignVariableStringByName(orders[OI],stringStackPopped);
 		}
@@ -568,9 +603,9 @@ void parse(){
 	code();
 }
 void code(){
-	char bs[L_MAX][W_MAX]={"if","while","for","def"};
+	char bs[L_MAX][W_MAX]={"if","while","loop","def"};
 	while(!check("")){
-		if(divChar(tokens[tokenIndex][0]))return; //end of block
+		if(check("."))return; //end of block
 		else if(stringIsIn(tokens[tokenIndex],bs))
 			block();
 		else expression();
@@ -578,7 +613,79 @@ void code(){
 	}
 	return;
 }
+void placeFlag(bool type,bool type2,int na,int nb){ //type: 0=start, 1=end; type2: 0=goto, 1=flag.
+	char a[W_MAX]="__________________________________";
+	char b[W_MAX]="__________________________________";
+	sprintf(a,"%d",na);
+	sprintf(b,"%d",nb);
+	char f[W_MAX]="";
+	if(type2)	strcat(f,":");
+	if(type)	strcat(f,"end_");
+	else		strcat(f,"start_");
+	strcat(f,a);
+	strcat(f,"_");
+	strcat(f,b);
+	place(f);
+}
 void block(){
+	blockNest[0]++;
+	int a=blockNest[0],b=blockNest[1];
+	if(check("if")){
+		next();
+		numeric();
+		place("if");
+		placeFlag(1,0,a,b);
+		next();
+		code();
+		if(!check("."))syntaxError("excpected end of block");
+		placeFlag(1,1,a,b);
+	}
+	else if(check("while")){
+		next();
+		placeFlag(0,1,a,b);
+		numeric();
+		place("if");
+		placeFlag(1,0,a,b);
+		next();
+		code();
+		if(!check("."))syntaxError("excpected end of block");
+		place("goto");
+		placeFlag(0,0,a,b);
+		placeFlag(1,1,a,b);
+	}
+	else if(check("loop")){
+		next();
+		if(!isSymbol(tokens[tokenIndex]))syntaxError("excpected variable");
+		char v[W_MAX]="";
+		strcpy(v,tokens[tokenIndex]);
+		next();
+		numeric();
+		place("__assign_int__");
+		place(v);
+		next();
+		placeFlag(0,1,a,b);
+		numeric();
+		place(v);
+		place("=");
+		place("not");
+		place("if");
+		placeFlag(1,0,a,b);
+		next();
+		code();
+		place("1");
+		place(v);
+		place("+");
+		place("__assign_int__");
+		place(v);
+		if(!check("."))syntaxError("excpected end of block");
+		place("goto");
+		placeFlag(0,0,a,b);
+		placeFlag(1,1,a,b);
+		place("free");
+		place(v);
+	}
+	blockNest[0]--;
+	blockNest[1]++;
 }
 void expression(){
 	if(check("print")){
@@ -593,22 +700,13 @@ void expression(){
 		place("write");
 		place("__int_stack_mode__");
 	}
-	/*else if(check("goto")){
-		next()
+	else if(check("goto")){
+		next();
 		if(!isSymbol(tokens[tokenIndex]))
 			syntaxError("expected flag");
 		place("goto");
 		place(tokens[tokenIndex]);
-	}*/
-	/*
-	else if(check("int")){
-		next();
-		declareNumeric();
 	}
-	else if(check("str")){
-		next();
-		declareString();
-	}*/
 	else if(check("free")){
 		place("free");
 		next();
@@ -625,20 +723,23 @@ void expression(){
 			char o[W_MAX];
 			strcpy(o,tokens[tokenIndex]);
 			
-			int i=1;for(;checkNext("+")||checkNext("-");i++){
-				next();
-				if(!checkNext(o))i--;
-			}
+			int i=1;for(;checkNext(o);i++)next();
 			char n[W_MAX]="____________";
 			sprintf(n,"%d",i);
 			
-			place(n);
 			place(v);
+			place(n);
 			place(o);
 			place("__assign_int__");
 			place(v);
 		}
-		//else if(check(":")); //goto
+		else if(checkNext(":")){
+			char f[W_MAX]="";
+			f[0]=':';
+			for(int i=0;i<strlen(tokens[tokenIndex]);i++)f[i+1]=tokens[tokenIndex][i];
+			place(f);
+			next();
+		}
 		//else //kalla funktion
 	}
 	else if(check("end"))place("end");
@@ -679,7 +780,10 @@ void stringExpression(){
 }
 void string(){
 	if(isSymbol(tokens[tokenIndex])){
-		printf(">%s\n",tokens[tokenIndex]);place(tokens[tokenIndex]);
+		place(tokens[tokenIndex]);
+	}
+	if(check("input")){
+		place("__str_user_input__");
 	}
 	if(check("'")){
 		next();
@@ -727,7 +831,7 @@ void compare_(){
 		strcpy(o,tokens[tokenIndex]);
 		next();
 		mathExpression();
-		if(o[0]=='=')place("_=");
+		if(o[0]=='=')place("=");
 		else place(o);
 	}
 }
@@ -784,7 +888,7 @@ void potens(){
 	}
 	else if(check("true"))	place("1");
 	else if(check("false"))	place("0");
-	else if(check("input"))	place("input");
+	else if(check("input"))	place("__int_user_input__");
 	else if(isSymbol(tokens[tokenIndex]))place(tokens[tokenIndex]);
 
 	else syntaxError("expected value");
@@ -1045,4 +1149,3 @@ void error_S_SYSTEM(char m[]){
 
 	exit(0);
 }
-
