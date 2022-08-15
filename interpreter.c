@@ -104,9 +104,11 @@ void freeStringList_MEMORY(int y);
 #define false 0
 
 //PROGRAMSTORLEK
-#define L_MAX	100
-#define W_MAX	500
+#define L_MAX	200
+#define W_MAX	100
 #define S_STACK	100
+
+#define DATA_MAX 10000 //INDATA
 
 typedef unsigned char byte;
 
@@ -139,13 +141,21 @@ const char RES_WORDS[L_MAX][W_MAX]={
 	"write",
 	"__int_user_input__",
 	"__str_user_input__",
+	"__int_to_str_stack__",
+	"__str_compare__",
+	"__str_index__",
+	"__str_check_inside__",
+	"in",
 	"return"};
+
+
+const char preOrders[W_MAX]="n=='\\n'";
 
 
 void prompt(char esc,const char p[],char x[],int max);
 
 char tokens[L_MAX][W_MAX];
-void lex(const char inp[],char x[L_MAX][W_MAX]);
+void lex(const char inp[DATA_MAX],char x[L_MAX][W_MAX]);
 bool deadChar(char c);
 bool divChar(char c);
 
@@ -174,6 +184,8 @@ void declareNumeric();
 void declareString();
 
 void stringExpression();
+void stringConcation();
+void stringIndex();
 void string();
 
 void numeric();
@@ -190,6 +202,8 @@ void execute();
 void executionError(const char error[]);
 int OI=0;
 
+void doPreOrders();
+
 int stack[S_STACK];
 int stackTop=-1;
 void push(int i);
@@ -203,6 +217,7 @@ void syntaxError(const char error[]);
 void debug(char s[]);
 bool DEBUG=false;
 bool GETINPUT=true;
+bool DO_PREORDERS=true;
 
 bool ERROR=false;
 
@@ -234,12 +249,13 @@ char stringStackPopped[W_MAX]="";
 
 int main(int argc,char*argv[]){
 
-	char codeInput[W_MAX]="";
+	char codeInput[DATA_MAX]="";
 	
 	bool noExe=false;
 	for(int i=0;i<argc;i++){
 		if(!strcmp(argv[i],"-d"))DEBUG=true;
 		else if(!strcmp(argv[i],"-s"))noExe=true;
+		else if(!strcmp(argv[i],"-p"))DO_PREORDERS=false;
 		else if(!strcmp(argv[i],"-f")){
 			i++;
 			GETINPUT=false;
@@ -247,9 +263,8 @@ int main(int argc,char*argv[]){
 			FILE *fp;
 			fp=fopen(argv[i],"r");
 			if(!fp){printf("File error.\n");return 1;}
-			char s[W_MAX];
 			char c=fgetc(fp);
-			for(int i=0;c!=EOF&&i<W_MAX;i++){
+			for(int i=0;c!=EOF&&i<DATA_MAX;i++){
 				codeInput[i]=c;
 				c=fgetc(fp);
 			}
@@ -260,9 +275,11 @@ int main(int argc,char*argv[]){
 	clear_MEMORY();
 	clear(1);
 
+	if(DO_PREORDERS)doPreOrders();
+
 	do
 	{	
-		if(GETINPUT)prompt('\n',"megumin.c",codeInput,W_MAX);
+		if(GETINPUT)prompt('\n',"megumin.c",codeInput,DATA_MAX);
 
 		lex(codeInput,tokens);
 
@@ -286,6 +303,15 @@ abort_execution:
 	while(GETINPUT);
 
 	return 0;
+}
+
+void doPreOrders(){
+	if(DEBUG)printf("pre-procedure instructions begin\n");
+	lex(preOrders,tokens);
+	parse(tokens);
+	execute();
+	clear(0);
+	if(DEBUG)printf("pre-procedure instructions end\n\n");
 }
 
 void clear(bool all){
@@ -391,7 +417,12 @@ void execute(){
 		if		(!strcmp(o,"__str_stack_mode__"))stackmode=false;
 		else if	(!strcmp(o,"__int_stack_mode__"))stackmode=true;
 
-		else if(isInteger(o))push(intParse(o));
+		else if(isInteger(o)&&stackmode)		push(intParse(o));
+		else if(!strcmp(o,"__int_to_str_stack__")){
+			char n[W_MAX]="____________________________";
+			sprintf(n,"%d",pop());
+			stringStackPush(n);
+		}
 		else if(o[0]=='"'){
 			char s[W_MAX]="";
 			for(int i=1;i<strlen(o);i++)s[i-1]=o[i];
@@ -419,8 +450,8 @@ skip2:;
 			}
 		}
 
-		else if(!strcmp(o,"print"))printf("%s%s%d%s\n",style_bold,fg_yellow,pop(),style_reset);
-		else if(!strcmp(o,"write"))
+//		else if(!strcmp(o,"print"))printf("%s%s%d%s\n",style_bold,fg_yellow,pop(),style_reset);
+		else if(!strcmp(o,"print"))
 			stringStackPop(),
 			printf("%s%s%s%s",style_bold,fg_yellow,stringStackPopped,style_reset);
 		else if(!strcmp(o,"__int_user_input__")){
@@ -469,8 +500,13 @@ skip2:;
 			strcat(stringStackPopped,a);
 			stringStackPush(stringStackPopped);
 		}
-
-		else if(o[0]=='+')push(pop()+pop());
+		else if(!strcmp(o,"__str_compare__")){
+			char a[W_MAX];
+			stringStackPop();
+			strcpy(a,stringStackPopped);
+			stringStackPop();
+			push(!strcmp(stringStackPopped,a));
+		} else if(o[0]=='+')push(pop()+pop());
 		else if(o[0]=='-'&&o[1]=='\0'){int a=pop();push(pop()-a);}
 		else if(o[0]=='*')push(pop()*pop());
 		else if(o[0]=='/'){
@@ -480,6 +516,34 @@ skip2:;
 			push(b/a);
 nonono:;
 		}
+		else if(!strcmp(o,"__str_index__")){
+			const int b=pop();
+			const int a=pop();
+			char r[W_MAX]="";
+			stringStackPop();
+			for(int i=a;i<=b&&stringStackPopped[i]!='\0';i++)r[i-a]=stringStackPopped[i];
+			stringStackPush(r);
+		}
+		else if(!strcmp(o,"__str_check_inside__")){
+			stringStackPop();
+			char t[W_MAX]="";
+			strcpy(t,stringStackPopped);
+			stringStackPop();
+			for(int i=0;i<W_MAX;i++){
+				for(int u=i;u-i<strlen(stringStackPopped);u++){
+					if(t[u]=='\0')goto fals;
+					if(stringStackPopped[u-i]!=t[u])goto cont;
+				}
+				push(true);
+				goto done;
+cont:;
+			}
+fals:
+			push(false);
+done:;
+		}
+
+
 		else if(o[0]=='^'){int a=pop();push(intPower(pop(),a));}
 
 		else if(!strcmp(o,"not"))push(!pop());
@@ -491,6 +555,13 @@ nonono:;
 			for(int s=0;s<stackTop+1;s++){
 				printf("stack[%d] = %d",s,stack[s]);
 				if(s==stackTop)printf(" <--");
+				printf("\n");
+			}
+		}
+		if(DEBUG){
+			for(int s=0;s<StringStackTop+1;s++){
+				printf("stringStack[%d] = \"%s\"",s,stringStack[s]);
+				if(s==StringStackTop)printf(" <--");
 				printf("\n");
 			}
 		}
@@ -687,17 +758,17 @@ void block(){
 	blockNest[0]--;
 	blockNest[1]++;
 }
-void expression(){
+void expression(){/*
 	if(check("print")){
 		next();
 		numeric();
 		place("print");
-	}
-	else if(check("write")){
+	}*/
+	if(check("print")){
 		next();
 		place("__str_stack_mode__");
 		stringExpression();
-		place("write");
+		place("print");
 		place("__int_stack_mode__");
 	}
 	else if(check("goto")){
@@ -770,12 +841,41 @@ void declareString(){
 	place("__int_stack_mode__");
 }
 void stringExpression(){
-	string();
+	stringConcation();
+	if(checkNext("=")){
+		next();
+		next();
+		stringConcation();
+		place("__str_compare__");
+	}
+	else if(checkNext("in")){
+		next();
+		next();
+		stringConcation();
+		place("__str_check_inside__");
+	}
+
+}
+void stringConcation(){
+	stringIndex();
 	while(checkNext("+")){
 		next();
 		next();  // |o| (o) <o> |-o-| (-o-) <-o-> --o-O-o--
-		string();
+		stringIndex();
 		place("__str_concat__");
+	}
+}
+void stringIndex(){
+	string();
+	if(checkNext("-")){
+		next();
+		next();
+		place("__int_stack_mode__");
+		numeric();
+		next();
+		numeric();
+		place("__str_index__");
+		place("__str_stack_mode__");
 	}
 }
 void string(){
@@ -792,6 +892,15 @@ void string(){
 		place(s);
 		if(!checkNext("'"))syntaxError("expected end of string '''");
 		next();
+	}
+	if(check("(")){
+		next();
+		place("__int_stack_mode__");
+		numeric();
+		next();
+		place("__int_to_str_stack__");
+		place("__str_stack_mode__");
+		if(!check(")"))syntaxError("excpected end of numeric expression ')'");
 	}
 }
 void numeric(){
@@ -827,12 +936,18 @@ void compare_(){
 	mathExpression();
 	while(checkNext("<")||checkNext(">")||checkNext("=")){
 		next();
-		char o[1];
-		strcpy(o,tokens[tokenIndex]);
-		next();
-		mathExpression();
-		if(o[0]=='=')place("=");
-		else place(o);
+		if(check("=")&&checkNext("=")){
+			next();
+			next();
+
+		}else{
+			char o[1];
+			strcpy(o,tokens[tokenIndex]);
+			next();
+			mathExpression();
+			if(o[0]=='=')place("=");
+			else place(o);
+		}
 	}
 }
 void mathExpression(){
@@ -872,7 +987,7 @@ void potens(){
 		numeric();
 		next();
 		if(!check(")"))
-			syntaxError("expected ')'");
+			syntaxError("expected end of expression ')'");
 	}
 	else if(check("-")&&
 	  (isInteger(tokens[tokenIndex+1])||
@@ -891,6 +1006,16 @@ void potens(){
 	else if(check("input"))	place("__int_user_input__");
 	else if(isSymbol(tokens[tokenIndex]))place(tokens[tokenIndex]);
 
+	else if(check("[")){//string expression
+		next();
+		place("__str_stack_mode__");
+		stringExpression();
+		place("__int_stack_mode__");
+		next();
+		if(!check("]"))
+			syntaxError("expected end of string-expression ']'");
+	}
+
 	else syntaxError("expected value");
 }
 
@@ -906,12 +1031,12 @@ void debug(char s[]){
 void lex(const char inp[],char x[L_MAX][W_MAX]){	
 	int t=0;	
 	int ti=0;	
-	for(int i=0;i<W_MAX&&inp[i]!='\0';i++){	
+	for(int i=0;i<DATA_MAX&&inp[i]!='\0';i++){	
 		char c=inp[i];	
 		if(deadChar(c)){if(x[t][0]!='\0')t++;ti=0;}
 		else if(c=='\''){
-			x[t][0]='\'';t++;ti=0;
-			for(i++;i<W_MAX&&inp[i]!='\0'&&inp[i]!='\'';i++,ti++){
+			if(x[t][0]!='\0')t++;x[t][0]='\'';t++;ti=0;
+			for(i++;i<DATA_MAX&&inp[i]!='\0'&&inp[i]!='\'';i++,ti++){
 				if(inp[i]=='\\'){
 					i++;
 					if		(inp[i]=='n')x[t][ti]='\n';
@@ -925,8 +1050,8 @@ skip:;
 			}t++;
 			x[t][0]='\'';ti=0;t++;
 		}
-		else if(c=='#'&&inp[i+1]=='#'){for(i++;i<W_MAX&&inp[i]!='\0'&&!(inp[i]=='#'&&inp[i+1]=='#');i++);i++;}
-		else if(c=='#'){for(i++;i<W_MAX&&inp[i]!='\0'&&inp[i]!='#'&&inp[i]!='\n';i++);}
+		else if(c=='#'&&inp[i+1]=='#'){for(i++;i<DATA_MAX&&inp[i]!='\0'&&!(inp[i]=='#'&&inp[i+1]=='#');i++);i++;}
+		else if(c=='#'){for(i++;i<DATA_MAX&&inp[i]!='\0'&&inp[i]!='#'&&inp[i]!='\n';i++);}
 		else if(divChar(c)){if(x[t][0]!='\0')t++;ti=0;x[t][ti]=c;t++;}	
 		else x[t][ti]=c,ti++;	
 	}	
