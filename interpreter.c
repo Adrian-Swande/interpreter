@@ -104,7 +104,7 @@ void freeStringList_MEMORY(int y);
 #define false 0
 
 //PROGRAMSTORLEK
-#define L_MAX	200
+#define L_MAX	500
 #define W_MAX	100
 #define S_STACK	100
 
@@ -146,6 +146,7 @@ const char RES_WORDS[L_MAX][W_MAX]={
 	"__str_index__",
 	"__str_check_inside__",
 	"in",
+	"exe",
 	"return"};
 
 
@@ -247,10 +248,14 @@ void stringStackPush(const char s[W_MAX]);
 void stringStackPop();
 char stringStackPopped[W_MAX]="";
 
-int main(int argc,char*argv[]){
 
-	char codeInput[DATA_MAX]="";
-	
+char codeInput[DATA_MAX]="";
+
+int main(int argc,char*argv[]){
+		
+	clear_MEMORY();
+	clear(1);
+
 	bool noExe=false;
 	for(int i=0;i<argc;i++){
 		if(!strcmp(argv[i],"-d"))DEBUG=true;
@@ -272,14 +277,11 @@ int main(int argc,char*argv[]){
 		}
 	}
 
-	clear_MEMORY();
-	clear(1);
-
 	if(DO_PREORDERS)doPreOrders();
 
 	do
 	{	
-		if(GETINPUT)prompt('\n',"megumin.c",codeInput,DATA_MAX);
+		if(GETINPUT)prompt('\n',/*argv[0]*/"megumin.c",codeInput,DATA_MAX);
 
 		lex(codeInput,tokens);
 
@@ -323,8 +325,8 @@ void clear(bool all){
 			if(all)VARIABLE_NAMES[y][x]='\0';
 		}
 	}
-	for(int i=0;i<S_STACK;i++)
-		stack[i]=0;
+	for(int i=0;i<S_STACK;i++)	stack[i]=0;
+	if(all){for(int i=0;i<DATA_MAX;i++)	codeInput[i]=0;}
 
 	stackTop=-1;
 
@@ -428,6 +430,10 @@ void execute(){
 			for(int i=1;i<strlen(o);i++)s[i-1]=o[i];
 			stringStackPush(s);
 		}
+
+		else if(!strcmp(o,"exe"))
+			stringStackPop(),
+			system(stringStackPopped);
 
 		else if(!strcmp(o,"goto")){
 			OI++;
@@ -764,7 +770,14 @@ void expression(){/*
 		numeric();
 		place("print");
 	}*/
-	if(check("print")){
+	if(check("exe")){
+		next();
+		place("__str_stack_mode__");
+		stringExpression();
+		place("exe");
+		place("__int_stack_mode__");
+	}
+	else if(check("print")){
 		next();
 		place("__str_stack_mode__");
 		stringExpression();
@@ -1028,12 +1041,20 @@ void debug(char s[]){
 	if(DEBUG)printf("%s",s);
 
 }
+
+bool isSpecialChar(const char c){
+	const char s[]="åäö";
+	for(int i=0;i<strlen(s);i++)if(c==s[i])return true;
+	return false;
+}
+
 void lex(const char inp[],char x[L_MAX][W_MAX]){	
 	int t=0;	
 	int ti=0;	
 	for(int i=0;i<DATA_MAX&&inp[i]!='\0';i++){	
-		char c=inp[i];	
-		if(deadChar(c)){if(x[t][0]!='\0')t++;ti=0;}
+		char c=inp[i];
+		if(isSpecialChar(c))x[t][ti]=c,ti++;
+		else if(deadChar(c)){if(x[t][0]!='\0')t++;ti=0;}
 		else if(c=='\''){
 			if(x[t][0]!='\0')t++;x[t][0]='\'';t++;ti=0;
 			for(i++;i<DATA_MAX&&inp[i]!='\0'&&inp[i]!='\'';i++,ti++){
