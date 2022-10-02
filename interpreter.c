@@ -134,6 +134,10 @@ const char RES_WORDS[L_MAX][W_MAX]={
 	"str",
 	"__assign_int__",
 	"__assign_str__",
+	"__declare_int__",
+	"__declare_str__",
+	"__declare_or_assign_int__",
+	"__declare_or_assign_str__",
 	"__str_concat__",
 	"__str_stack_mode__",
 	"__int_stack_mode__",
@@ -147,7 +151,9 @@ const char RES_WORDS[L_MAX][W_MAX]={
 	"__str_check_inside__",
 	"in",
 	"exe",
-	"return"};
+	"return",
+	"new",
+	"__clearup__"};
 
 
 const char preOrders[W_MAX]="n=='\\n'";
@@ -177,12 +183,15 @@ int orderIndex=0;
 
 int blockNest[2]={-1,0};
 void placeFlag(bool type,bool type2,int na,int nb);
+void placeBlock(char v[W_MAX],const char type[W_MAX]);
 void code();
 void block();
 void expression();
 
-void declareNumeric();
-void declareString();
+void declareNewNumeric_SYNTAX();
+void declareNewString_SYNTAX();
+void declareOrAssignNumeric_SYNTAX();
+void declareOrAssignString_SYNTAX();
 
 void stringExpression();
 void stringConcation();
@@ -232,10 +241,14 @@ char			VARIABLE_NAMES[L_MAX][W_MAX];
 
 int  getVariableIndexByName	(const char n[W_MAX]);
 int  getVariableValueByName	(const char n[W_MAX]);
+void declareOrAssignInteger	(const char n[W_MAX],const int v);
 void assignVariableByName	(const char n[W_MAX],const int v);
+void declareVariableByName	(const char n[W_MAX],const int v);
 
-void assignVariableStringByName(const char n[W_MAX],const char s[W_MAX]);
-void getVariableStringByName(const char n[W_MAX]);
+void declareOrAssignString		(const char n[W_MAX],const char s[W_MAX]);
+void assignVariableStringByName	(const char n[W_MAX],const char s[W_MAX]);
+void declareVariableStringByName(const char n[W_MAX],const char s[W_MAX]);
+void getVariableStringByName	(const char n[W_MAX]);
 char __varString[W_MAX];
 
 //STRÄNGSTACK
@@ -336,11 +349,10 @@ void clear(bool all){
 	ERROR=false;
 	OI=0;
 }
-
 int getVariableIndexByName(const char n[]){
-	for(int i=0;strcmp(VARIABLE_NAMES[i],"")&&i<L_MAX;i++){
-		if(!strcmp(n,VARIABLE_NAMES[i]))return i;
-	}return -1;
+	int i=0;for(;strcmp(VARIABLE_NAMES[i],"")&&i<L_MAX;i++);
+	for(;i>=0;i--)if(!strcmp(n,VARIABLE_NAMES[i]))return i;
+	printf("Fatal error.\n");exit(1);
 }
 int getVariableValueByName(const char n[]){
 	int index,pointer;
@@ -351,9 +363,11 @@ int getVariableValueByName(const char n[]){
 		for(int i=0;i<_MEMORY_X_SIZE_&&getChar_MEMORY(pointer,i)!='\0';i++)value[i]=getChar_MEMORY(pointer,i);
 		return intParse(value);
 	}
-	else{
-		executionError("unknown symbol, expected variable");
-	}
+	else executionError("unknown symbol, expected variable");
+}
+void declareOrAssignInteger(const char n[],const int v){
+	if(stringIsIn(n,VARIABLE_NAMES))	assignVariableByName(n,v);
+	else								declareVariableByName(n,v);
 }
 void assignVariableByName(const char n[],const int v){
 	int index,pointer;
@@ -364,16 +378,22 @@ void assignVariableByName(const char n[],const int v){
 		sprintf(value,"%d",v);
 		putString_MEMORY(pointer,value);
 	}
-	else{
-		int i=0;for(;strcmp(VARIABLE_NAMES[i],"");i++){
-			if(i==L_MAX-1)executionError("out of variable space");
-		}index=i;
-		strcpy(VARIABLE_NAMES[index],n);
-		char value[_MEMORY_X_SIZE_]="___________________________";
-		sprintf(value,"%d",v);
-		pointer=putString_RandomAccess_MEMORY(value);
-		VARIABLE_POINTERS[index]=pointer;
-	}
+	else executionError("tried to assign a non-existing variable");
+}
+void declareVariableByName(const char n[],const int v){
+	int index,pointer;
+	int i=0;for(;strcmp(VARIABLE_NAMES[i],"");i++){
+		if(i==L_MAX-1)executionError("out of variable space");
+	}index=i;
+	strcpy(VARIABLE_NAMES[index],n);
+	char value[_MEMORY_X_SIZE_]="___________________________";
+	sprintf(value,"%d",v);
+	pointer=putString_RandomAccess_MEMORY(value);
+	VARIABLE_POINTERS[index]=pointer;
+}
+void declareOrAssignString(const char n[],const char s[]){
+	if(stringIsIn(n,VARIABLE_NAMES))	assignVariableStringByName(n,s);
+	else								declareVariableStringByName(n,s);
 }
 void assignVariableStringByName(const char n[],const char s[]){
 	int index,pointer;
@@ -382,14 +402,16 @@ void assignVariableStringByName(const char n[],const char s[]){
 		pointer=VARIABLE_POINTERS[index];
 		putString_MEMORY(pointer,s);
 	}
-	else{
-		int i=0;for(;strcmp(VARIABLE_NAMES[i],"");i++){
-			if(i==L_MAX-1)executionError("out of variable space");
-		}index=i;
-		strcpy(VARIABLE_NAMES[index],n);
-		pointer=putString_RandomAccess_MEMORY(s);
-		VARIABLE_POINTERS[index]=pointer;
-	}
+	else executionError("tried to assign a non-existing variable");
+}
+void declareVariableStringByName(const char n[],const char s[]){
+	int index,pointer;
+	int i=0;for(;strcmp(VARIABLE_NAMES[i],"");i++){
+		if(i==L_MAX-1)executionError("out of variable space");
+	}index=i;
+	strcpy(VARIABLE_NAMES[index],n);
+	pointer=putString_RandomAccess_MEMORY(s);
+	VARIABLE_POINTERS[index]=pointer;
 }
 void getVariableStringByName(const char n[]){
 	int index,pointer;
@@ -400,9 +422,7 @@ void getVariableStringByName(const char n[]){
 		for(int i=0;i<_MEMORY_X_SIZE_&&getChar_MEMORY(pointer,i)!='\0';i++)string[i]=getChar_MEMORY(pointer,i);
 		strcpy(__varString,string);
 	}
-	else{
-		executionError("unknown symbol, expected variable");
-	}
+	else executionError("unknown symbol, expected variable");
 }
 
 void execute(){
@@ -412,6 +432,14 @@ void execute(){
 		strcpy(o,orders[OI]);
 
 		if(DEBUG)printf("order[%d]: %s\n",OI,o);
+	
+		for(int i=0;i<5/*strcmp(VARIABLE_NAMES[i],"")*/;i++){
+			char val[W_MAX]="";
+			int u;for(u=VARIABLE_POINTERS[i]*_MEMORY_X_SIZE_;u<(VARIABLE_POINTERS[i]+1)*_MEMORY_X_SIZE_;u++)val[u-VARIABLE_POINTERS[i]*_MEMORY_X_SIZE_]=CHAR_MEMORY[u];val[u]='\0';
+			printf("VARIABLE_NAME[%d]:\t%s (%d) = '%s'\n",i,VARIABLE_NAMES[i],VARIABLE_POINTERS[i],val);
+		}//printf("\n");
+
+		printf("\n");
 
 
 
@@ -474,13 +502,47 @@ skip2:;
 		else if(!strcmp(o,"free")){
 			OI++;
 			if(DEBUG)printf("(free '%s')\n",orders[OI]);
-			int index=getVariableIndexByName(orders[OI]);
-			free_MEMORY(VARIABLE_POINTERS[index]);
-			strcpy(VARIABLE_NAMES[index],"");
+			if(stringIsIn(orders[OI],VARIABLE_NAMES)){
+				int index=getVariableIndexByName(orders[OI]);
+				free_MEMORY(VARIABLE_POINTERS[index]);
+				strcpy(VARIABLE_NAMES[index],"");
+			}else executionError("unknown symbol, expected variable");
+		}
+
+		else if(!strcmp(o,"__clearup__")){
+			OI++;
+			char b[W_MAX]="";
+			strcpy(b,orders[OI]);
+			int i=0;for(;strcmp(VARIABLE_NAMES[i],b)&&i<L_MAX;i++);
+			for(;strcmp(VARIABLE_NAMES[i],"");i++)strcpy(VARIABLE_NAMES[i],"");
 		}
 
 		else if(!strcmp(o,"end"))return;
 		else if(!strcmp(o,"yamete"))exit(0);
+
+		else if(!strcmp(o,"__declare_or_assign_int__")){
+			OI++;
+			if(DEBUG)printf("(declare or assign '%s')\n",orders[OI]);
+			declareOrAssignInteger(orders[OI],pop());
+		}
+		else if(!strcmp(o,"__declare_or_assign_str__")){
+			OI++;
+			if(DEBUG)printf("(declare or assign '%s')\n",orders[OI]);
+			stringStackPop();
+			declareOrAssignString(orders[OI],stringStackPopped);
+		}
+
+		else if(!strcmp(o,"__declare_int__")){
+			OI++;
+			if(DEBUG)printf("(declare '%s')\n",orders[OI]);
+			declareVariableByName(orders[OI],pop());
+		}
+		else if(!strcmp(o,"__declare_str__")){
+			OI++;
+			if(DEBUG)printf("(declare '%s')\n",orders[OI]);
+			stringStackPop();
+			declareVariableStringByName(orders[OI],stringStackPopped);
+		}
 
 		else if(!strcmp(o,"__assign_int__")){
 			OI++;
@@ -493,6 +555,7 @@ skip2:;
 			stringStackPop();
 			assignVariableStringByName(orders[OI],stringStackPopped);
 		}
+
 		else if(isSymbol(o)){
 			if(stackmode)push(getVariableValueByName(o));
 			else getVariableStringByName(o),stringStackPush(__varString);
@@ -704,10 +767,28 @@ void placeFlag(bool type,bool type2,int na,int nb){ //type: 0=start, 1=end; type
 	strcat(f,b);
 	place(f);
 }
+void placeBlock(char v[],const char type[]){
+	char a[W_MAX]="__________________________________";
+	char b[W_MAX]="__________________________________";
+	sprintf(a,"_%d_",blockNest[0]);
+	sprintf(b,"%d",blockNest[1]);
+	char f[W_MAX]="";
+	strcpy(f,type);
+	strcat(f,a);
+	strcat(f,b);
+	place(f);
+
+	strcpy(v,f);
+}
 void block(){
 	blockNest[0]++;
 	int a=blockNest[0],b=blockNest[1];
 	if(check("if")){
+		place("0");
+		place("__declare_int__");
+		char bf[W_MAX]="";
+		placeBlock(bf,"if");
+
 		next();
 		numeric();
 		place("if");
@@ -716,8 +797,16 @@ void block(){
 		code();
 		if(!check("."))syntaxError("excpected end of block");
 		placeFlag(1,1,a,b);
+
+		place("__clearup__");
+		place(bf);
 	}
 	else if(check("while")){
+		place("0");
+		place("__declare_int__");
+		char bf[W_MAX]="";
+		placeBlock(bf,"while");	
+
 		next();
 		placeFlag(0,1,a,b);
 		numeric();
@@ -729,15 +818,23 @@ void block(){
 		place("goto");
 		placeFlag(0,0,a,b);
 		placeFlag(1,1,a,b);
+
+		place("__clearup__");
+		place(bf);
 	}
 	else if(check("loop")){
+		place("0");
+		place("__declare_int__");
+		char bf[W_MAX]="";
+		placeBlock(bf,"loop");
+
 		next();
 		if(!isSymbol(tokens[tokenIndex]))syntaxError("excpected variable");
 		char v[W_MAX]="";
 		strcpy(v,tokens[tokenIndex]);
 		next();
 		numeric();
-		place("__assign_int__");
+		place("__declare_int__");
 		place(v);
 		next();
 		placeFlag(0,1,a,b);
@@ -758,18 +855,19 @@ void block(){
 		place("goto");
 		placeFlag(0,0,a,b);
 		placeFlag(1,1,a,b);
-		place("free");
-		place(v);
+		
+		place("__clearup__");
+		place(bf);
+		/*place("free");
+		place(v);*/
+	}
+	else if(check("def")){
+		//Hhere HERE här HÄR
 	}
 	blockNest[0]--;
 	blockNest[1]++;
 }
-void expression(){/*
-	if(check("print")){
-		next();
-		numeric();
-		place("print");
-	}*/
+void expression(){
 	if(check("exe")){
 		next();
 		place("__str_stack_mode__");
@@ -797,9 +895,17 @@ void expression(){/*
 		if(!isSymbol(tokens[tokenIndex]))syntaxError("expected symbol");
 		place(tokens[tokenIndex]);
 	}
+	else if(check("new")){
+		next();
+		if(isSymbol(tokens[tokenIndex])){
+			if(checkNext("=")&&tokens[tokenIndex+2][0]=='=')declareNewString_SYNTAX();
+			else if(checkNext("=")) 						declareNewNumeric_SYNTAX();
+			else syntaxError("expected assignment");
+		}else syntaxError("expected symbol");
+	}
 	else if(isSymbol(tokens[tokenIndex])){
-		if(checkNext("=")&&tokens[tokenIndex+2][0]=='=')declareString();
-		else if(checkNext("="))declareNumeric();
+		if(checkNext("=")&&tokens[tokenIndex+2][0]=='=')declareOrAssignString_SYNTAX();
+		else if(checkNext("="))							declareOrAssignNumeric_SYNTAX();
 		else if(checkNext("+")||checkNext("-")){
 			char v[W_MAX];
 			strcpy(v,tokens[tokenIndex]);
@@ -824,23 +930,24 @@ void expression(){/*
 			place(f);
 			next();
 		}
-		//else //kalla funktion
+		//else if //kalla funktion
+		else syntaxError("unknown expression");
 	}
 	else if(check("end"))place("end");
 	else if(check("yamete"))place("yamete");
 
 	else syntaxError("unknown expression");
 }
-void declareNumeric(){
+void declareNewNumeric_SYNTAX(){
 	char v[W_MAX]="____________";
 	strcpy(v,tokens[tokenIndex]);
 	next();
 	next();
 	numeric();
-	place("__assign_int__");
+	place("__declare_int__");
 	place(v);
 }
-void declareString(){
+void declareNewString_SYNTAX(){
 	place("__str_stack_mode__");
 	char v[W_MAX]="____________";
 	if(!isSymbol(tokens[tokenIndex]))syntaxError("expected symbol");
@@ -849,7 +956,29 @@ void declareString(){
 	next();
 	next();
 	stringExpression();
-	place("__assign_str__");
+	place("__declare_str__");
+	place(v);
+	place("__int_stack_mode__");
+}
+void declareOrAssignNumeric_SYNTAX(){
+	char v[W_MAX]="____________";
+	strcpy(v,tokens[tokenIndex]);
+	next();
+	next();
+	numeric();
+	place("__declare_or_assign_int__");
+	place(v);
+}
+void declareOrAssignString_SYNTAX(){
+	place("__str_stack_mode__");
+	char v[W_MAX]="____________";
+	if(!isSymbol(tokens[tokenIndex]))syntaxError("expected symbol");
+	strcpy(v,tokens[tokenIndex]);
+	next();
+	next();
+	next();
+	stringExpression();
+	place("__declare_or_assign_str__");
 	place(v);
 	place("__int_stack_mode__");
 }
