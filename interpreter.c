@@ -431,7 +431,7 @@ void execute(){
 		char o[W_MAX];
 		strcpy(o,orders[OI]);
 
-		if(DEBUG)printf("order[%d]: %s\n",OI,o);
+		if(DEBUG){printf("order[%d]: %s\n",OI,o);
 	
 		for(int i=0;i<5/*strcmp(VARIABLE_NAMES[i],"")*/;i++){
 			char val[W_MAX]="";
@@ -439,7 +439,7 @@ void execute(){
 			printf("VARIABLE_NAME[%d]:\t%s (%d) = '%s'\n",i,VARIABLE_NAMES[i],VARIABLE_POINTERS[i],val);
 		}//printf("\n");
 
-		printf("\n");
+		printf("\n");}
 
 
 
@@ -861,8 +861,36 @@ void block(){
 		/*place("free");
 		place(v);*/
 	}
-	else if(check("def")){
-		//Hhere HERE här HÄR
+	else if(check("def")){printf("..\n");
+		place("goto");
+		placeFlag(1,0,a,b);
+
+		next();
+		char bf[W_MAX]="";strcpy(bf,tokens[tokenIndex]);
+		place("0");
+		place("__declare_int__");
+		placeBlock(bf,"function");
+
+		if(!isSymbol(tokens[tokenIndex]))syntaxError("expected function name");
+		next();
+		if(!check("("))syntaxError("excpected '('");
+		next();
+		while(isSymbol(tokens[tokenIndex]))
+			place("__declare_str__"),
+			place(tokens[tokenIndex]),
+			next();
+		if(!check(")"))syntaxError("excpected ')'");
+		next();
+
+		code();
+		
+		place("return");
+		if(!check("."))syntaxError("excpected end of block");
+
+		place("__clearup__");
+		place(bf);
+		
+		placeFlag(1,1,a,b);
 	}
 	blockNest[0]--;
 	blockNest[1]++;
