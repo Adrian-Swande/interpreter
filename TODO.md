@@ -1,4 +1,3 @@
-# Att implementera
+# To implement
 
-* Omstrukturerad sträng- och uttryckssyntax
-* Funktionsdefiniering och allt vad det innebär...
+* Restructured syntax for string- and numerical expressions
